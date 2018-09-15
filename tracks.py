@@ -43,16 +43,13 @@ class Tra:
         self.currentIndex = np.random.random_integers(0, int(self.size/4))
         return self.x[self.currentIndex], self.y[self.currentIndex], self.psi[self.currentIndex]
 
-    def setStartPosObstacle(self):
+    def setStartPosObstacle(self, delta_index = 5000):
         """
-        randomly choose a waypoint in the first 2/3 of the traj length after the currentIndex
-        output: x, y of the obstacle
-
-        Note: delta_index != 0, that is -> self,obstacleIndex==0 indicates no obstacle initiated
+        choose a waypoint "delta_index" length after the currentIndex as the staring pos of obstacle
+        Note: delta_index != 0, furthermore -> self,obstacleIndex==0 indicates no obstacle initiated
         """
-        delta_index = 5000  # np.random.random_integers(1, int(self.size*2/3))
         self.obstacleIndex = self.currentIndex + delta_index
-        return self.x[self.obstacleIndex], self.y[self.obstacleIndex]
+        return self.obstacleIndex
 
     def setPosObstacle(self, index):
         self.obstacleIndex = index
@@ -88,11 +85,14 @@ class Tra:
         tList = self.dt * np.array([0, self.horizon])
         errorList = []
         relaAngList = []
+        debug_view = []
         
         for t in tList:
             pX = X + v_x * cos(phi) * t
             pY = Y + v_x * sin(phi) * t
             index, distanceMin = self.searchClosestPt(pX, pY, standard_index=self.currentIndex)
+            debug_view.append([pX, pY])
+            debug_view.append([self.x[index], self.y[index]])
             
             if t == 0:
                 self.currentIndex = index
@@ -117,7 +117,7 @@ class Tra:
             status = 0
 
         ref = errorList + relaAngList
-        return np.array(ref), status
+        return np.array(ref), status, debug_view
 
     def getRefPoint(self, position, phi, ds):
         pX = position[0] + ds * cos(phi)
@@ -166,7 +166,7 @@ class Tra:
         """
         indexMin = standard_index
         distSqrMin = (pX - self.x[standard_index])**2 + (pY - self.y[standard_index])**2
-        for index in range(max(standard_index - self.horizon * 10, 0), min(standard_index + self.horizon * 10, self.size)):
+        for index in range(max(standard_index - self.horizon * 20, 0), min(standard_index + self.horizon * 20, self.size)):
             distSqr = (pX - self.x[index])**2 + (pY - self.y[index])**2
             if distSqr < distSqrMin:
                 indexMin = index

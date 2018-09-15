@@ -12,7 +12,7 @@ import driving
 class Run_PPO:
     def __init__(self, config):
         self.config = config
-        self.env = driving.LaneKeepingChanging()
+        self.env = driving.Driving()
         self.config.s_dim = self.env.getObservSpaceDim()
         self.config.a_dim = self.env.getActionSpaceDim()
         self.ppo = PPO(config=config)

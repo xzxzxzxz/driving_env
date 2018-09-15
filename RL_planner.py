@@ -10,7 +10,7 @@ def main(sim_steps):
     expert.restore('model70.ckpt')
 
     # get the sim_env ready
-    env = driving.LaneKeepingChanging()
+    env = driving.Driving(story_index=5)
     ob = env.reset()
 
     R = 0
@@ -19,11 +19,12 @@ def main(sim_steps):
         ob, r, done = env.step(ac, i)
         R += r
         if done:
-            print(i)
+            print("total steps = ", i)
             break
 
-    print(R)
+    print("total return = ", R)
     env.render_traj_history()
+    env.render('video', True, True)
 
 
 if __name__ == '__main__':
