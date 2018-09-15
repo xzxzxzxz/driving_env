@@ -332,6 +332,7 @@ class Driving:
                    self.obstacles_traj,
                    self.obstaclePlot)
 
+
 def updatePlot(frames,
                traj,
                indexList,
