@@ -6,7 +6,7 @@ parameters for the environment
 vehicle_random = False
 vehicle_seed = 0
 vehicle_errorBound = 0.100000
-track =  Tra_curve2
+track =  sine_curve
 parameters for the training process
 n_iter = 100
 max_path_length = 1000

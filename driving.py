@@ -25,7 +25,7 @@ class Driving:
                  vh_random_seed=0,
                  vh_err_bound=0.3,
                  vh_side_force=0,
-                 track_data='Tra_curve2',
+                 track_data='sine_curve',
                  track_horizon=50,
                  story_index=0
                  ):
@@ -146,8 +146,8 @@ class Driving:
 
         cost = q_error * np.sum(error[0]**2 - 0.8**2)
         v_along = obs[0] * cos(relyaw[0] * pi / 3) + obs[1] * sin(relyaw[0] * pi / 3)
-        v_vertical = obs[1] * cos(relyaw[0] * pi / 3) - obs[0] *sin(relyaw[0] * pi / 3)
-        reward = v_along - abs(v_vertical)
+        # v_vertical = obs[1] * cos(relyaw[0] * pi / 3) - obs[0] *sin(relyaw[0] * pi / 3)
+        reward = v_along # - abs(v_vertical)
 
         if status == -1:
             terminalReward = -1000
@@ -208,7 +208,7 @@ class Driving:
             pass
 
         elif self.story_index == 4:
-            obstacle_info.append([0, 5000])
+            obstacle_info.append([0, 500])
 
         elif self.story_index == 5:
             obstacle_info.append([0, 5000])

@@ -22,7 +22,7 @@ class Tra:
                threshold: if deviation larger than threshold then report failure
                currentIndex: index of waypoint corresponding to current vehicle position
         """
-        waypoints_mat = scipy.io.loadmat("Tra_curve2.mat")[name]
+        waypoints_mat = scipy.io.loadmat("sine_curve.mat")[name]
         self.x     = waypoints_mat[0][:]
         self.y     = waypoints_mat[1][:] + deviation
         self.psi   = (waypoints_mat[2][:]) % (2 * pi)
@@ -166,7 +166,7 @@ class Tra:
         """
         indexMin = standard_index
         distSqrMin = (pX - self.x[standard_index])**2 + (pY - self.y[standard_index])**2
-        for index in range(max(standard_index - self.horizon * 20, 0), min(standard_index + self.horizon * 20, self.size)):
+        for index in range(max(standard_index - self.horizon * 10, 0), min(standard_index + self.horizon * 10, self.size)):
             distSqr = (pX - self.x[index])**2 + (pY - self.y[index])**2
             if distSqr < distSqrMin:
                 indexMin = index
