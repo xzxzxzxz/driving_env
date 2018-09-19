@@ -6,7 +6,8 @@ import scipy.optimize
 import numpy as np
 from math import sqrt, cos, sin, tan, pi
 
-class Tra:
+
+class Track:
 
     def __init__(self, dt, name, horizon=50, deviation=0, threshold=5):
         """
@@ -32,6 +33,7 @@ class Tra:
         self.later_safe = 2
         self.currentIndex = 0
         self.obstacleIndex = 0
+        self.obstacleSpeed = 0
         self.dt = dt
         self.horizon = horizon
 
@@ -43,31 +45,21 @@ class Tra:
         self.currentIndex = np.random.random_integers(0, int(self.size/4))
         return self.x[self.currentIndex], self.y[self.currentIndex], self.psi[self.currentIndex]
 
-    def setStartPosObstacle(self, delta_index = 5000):
+    def setStartPosObstacle(self, delta_index = 5000, speed=10):
         """
         choose a waypoint "delta_index" length after the currentIndex as the staring pos of obstacle
         Note: delta_index != 0, furthermore -> self,obstacleIndex==0 indicates no obstacle initiated
         """
         self.obstacleIndex = self.currentIndex + delta_index
+        self.obstacleSpeed = speed
         return self.obstacleIndex
 
-    def setPosObstacle(self, index):
-        self.obstacleIndex = index
-
-    def getPosObstacle(self):
-        return self.obstacleIndex
-
-    def obstacleMove(self, v_x=0):
+    def obstacleMove(self):
         """
         given the speed of the obstacle, get the new pos, and assign to self
-        input:  v_x: the longtitudinal speed of the obstacle, default static obstacle
-                self.dt: timestep
-                self.horizon: search in +/- 10* horizon
-        output: void
         """
-        
-        pX = self.x[self.obstacleIndex] + v_x * cos(self.psi[self.obstacleIndex]) * self.dt
-        pY = self.y[self.obstacleIndex] + v_x * sin(self.psi[self.obstacleIndex]) * self.dt
+        pX = self.x[self.obstacleIndex] + self.obstacleSpeed * cos(self.psi[self.obstacleIndex]) * self.dt
+        pY = self.y[self.obstacleIndex] + self.obstacleSpeed * sin(self.psi[self.obstacleIndex]) * self.dt
         self.obstacleIndex, _ = self.searchClosestPt(pX, pY, standard_index=self.obstacleIndex)
 
     def getRef(self, X, Y, phi, v_x):
@@ -119,38 +111,31 @@ class Tra:
         ref = errorList + relaAngList
         return np.array(ref), status, debug_view
 
-    def getRefPoint(self, position, phi, ds):
-        pX = position[0] + ds * cos(phi)
-        pY = position[1] + ds * sin(phi)
-        index, _ = self.searchClosestPt(pX, pY, standard_index=self.currentIndex)
-        return (self.x[index], self.y[index], self.psi[index])
-
-    def getRefObstacle(self, position, phi, v_x):
+    def getRefObstacle(self, vh_state):
         """
         get the reference position and angle of the vehicle with respect to the obstacle
-        input: position: (x, y) current position of the vehicle
-               phi: current yaw angle of the vehicle
-               v_x: current longitudinal speed
-               self.dt: timestep length of the vehicle simulator
-               self.horizon: max num of timesteps to predict
+        input: vh_state: ego vehicle state [X, Y, phi, v_x, v_y, r, d_f]
         output: array(ref): [vX_over_errX, err_x, err_y]
                 status：0 if normal driving, -1 if hit the safety boundary
         """
-        delta_x = self.x[self.obstacleIndex] - position[0]
-        delta_y = self.y[self.obstacleIndex] - position[1]
-        distSqr = delta_x**2 + delta_y**2
-        err_y = (delta_y - delta_x * tan(phi))* cos(phi)
-        err_x =  sqrt(distSqr - err_y**2)
-        one_over_time_to_reach = v_x / sqrt(distSqr)
-        if one_over_time_to_reach > 1:
-            refOb = np.array([1, err_x, err_y])
+        delta_x = self.x[self.obstacleIndex] - vh_state[0]
+        delta_y = self.y[self.obstacleIndex] - vh_state[1]
+        distSqr = delta_x*delta_x + delta_y*delta_y
+        err_y = (delta_y - delta_x * tan(vh_state[2])) * cos(vh_state[2])
+        err_x = sqrt(distSqr - err_y**2)
+        err_phi = self.psi[self.obstacleIndex] - vh_state[2]
+        err_vx = self.obstacleSpeed * cos(err_phi) - vh_state[3]
+        err_vy = self.obstacleSpeed * sin(err_phi) - vh_state[4]
+        err_r = - vh_state[5]
+
+        refObstacle = np.array([err_x, err_y, err_phi, err_vx, err_vy, err_r])
+
+        if abs(err_x) < 4 and abs(err_y) < 2:
+            collision = True
         else:
-            refOb = np.array([0, err_x, err_y])
-        if abs(err_x) < self.longi_safe and abs(err_y) < self.later_safe:
-            status = -1
-        else:
-            status = 0
-        return refOb, status
+            collision = False
+
+        return refObstacle, collision
 
     def searchClosestPt(self, pX, pY, standard_index):
         """

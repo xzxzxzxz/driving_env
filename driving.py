@@ -1,5 +1,5 @@
 from vehicle import vehicle
-from tracks import Tra
+from tracks import Track
 from math import sin, cos, pi, atan, degrees, sqrt
 import numpy as np
 import csv
@@ -38,9 +38,9 @@ class Driving:
                                vh_side_force
                                )
         self.tracks = []
-        self.tracks.append(Tra(dt, track_data, track_horizon))
-        self.tracks.append(Tra(dt, track_data, track_horizon, deviation=3))
-        self.tracks.append(Tra(dt, track_data, track_horizon, deviation=-3))
+        self.tracks.append(Track(dt, track_data, track_horizon))
+        self.tracks.append(Track(dt, track_data, track_horizon, deviation=3))
+        self.tracks.append(Track(dt, track_data, track_horizon, deviation=-3))
         self.trajectory = []
         self.index_list = []
         self.track_select = []
@@ -66,18 +66,6 @@ class Driving:
         for i in range(3):
             self.tracks[i].currentIndex = self.tracks[track_index].currentIndex
 
-        # initiate obstacle
-        if len(self.obstacle_info):
-            for i in range(len(self.obstacle_info)):
-                self.tracks[self.obstacle_info[i][0]].setStartPosObstacle(self.obstacle_info[i][1])
-                self.obstacles_traj[i] = [[self.tracks[self.obstacle_info[i][0]].x[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                          self.tracks[self.obstacle_info[i][0]].y[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                          self.tracks[self.obstacle_info[i][0]].psi[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex]]]
-
-
         # get track measurement
         ref_state = []
         ref_status = []
@@ -87,6 +75,24 @@ class Driving:
             ref_state.append(ref)
             ref_status.append(status)
             ref_debugview.append(debugview)
+
+        # initiate obstacle
+        if len(self.obstacle_info):
+            ref_obst = []
+            obstacle_fail = False
+            for i in range(len(self.obstacle_info)):
+                self.tracks[self.obstacle_info[i][0]].setStartPosObstacle(self.obstacle_info[i][1])
+                self.obstacles_traj[i] = [[self.tracks[self.obstacle_info[i][0]].x[
+                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                          self.tracks[self.obstacle_info[i][0]].y[
+                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                          self.tracks[self.obstacle_info[i][0]].psi[
+                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex]]]
+                refObstacle, collision = \
+                    self.tracks[self.obstacle_info[i][0]].getRefObstacle(vh_state=vh_state)
+                ref_obst.append(refObstacle)
+                obstacle_fail = obstacle_fail or collision
+
 
         self.index_list = [self.tracks[track_index].currentIndex]
         self.debug_view = [ref_debugview[track_index]]
@@ -105,14 +111,20 @@ class Driving:
 
         # simulate the obstacles forward
         if len(self.obstacle_info):
+            ref_obst = []
+            obstacle_fail = False
             for i in range(len(self.obstacle_info)):
-                self.tracks[self.obstacle_info[i][0]].obstacleMove(10)
+                self.tracks[self.obstacle_info[i][0]].obstacleMove()
                 self.obstacles_traj[i].append([self.tracks[self.obstacle_info[i][0]].x[
                                                    self.tracks[self.obstacle_info[i][0]].obstacleIndex],
                                                self.tracks[self.obstacle_info[i][0]].y[
                                                    self.tracks[self.obstacle_info[i][0]].obstacleIndex],
                                                self.tracks[self.obstacle_info[i][0]].psi[
                                                    self.tracks[self.obstacle_info[i][0]].obstacleIndex]])
+                refObstacle, collision = \
+                    self.tracks[self.obstacle_info[i][0]].getRefObstacle(vh_state=vh_state)
+                ref_obst.append(refObstacle)
+                obstacle_fail = obstacle_fail or collision
 
         # get track measurement
         ref_state = []
@@ -130,6 +142,8 @@ class Driving:
         obs = np.append(vh_state[3:], ref_state[track_index])
         status = ref_status[track_index]
         # calculate reward
+        if len(self.obstacle_info) and obstacle_fail:
+            status = -1
         r = self.reward_func(obs, status)
         return obs, r, status != 0
 
@@ -151,8 +165,6 @@ class Driving:
 
         if status == -1:
             terminalReward = -1000
-        elif status == 1:
-            terminalReward = 0
         else:
             terminalReward = 0
 
@@ -211,17 +223,17 @@ class Driving:
             obstacle_info.append([0, 500])
 
         elif self.story_index == 5:
-            obstacle_info.append([0, 5000])
-            obstacle_info.append([1, 3000])
+            obstacle_info.append([0, 500])
+            obstacle_info.append([1, 300])
 
         elif self.story_index == 6:
-            obstacle_info.append([0, 3000])
-            obstacle_info.append([1, 5000])
+            obstacle_info.append([0, 300])
+            obstacle_info.append([1, 500])
 
         return obstacle_info
 
     def getObservSpaceDim(self):
-        return self.vehicle.getObservSpaceDim() + Tra.getRefSize()
+        return self.vehicle.getObservSpaceDim() + Track.getRefSize()
 
     def getActionSpaceDim(self):
         return self.vehicle.getActionSpaceDim()
