@@ -7,10 +7,10 @@ def main(sim_steps):
     # get the expert ready
     config = Config_PPO(log_name='model')
     expert = Run_PPO(config)
-    expert.restore('model70.ckpt')
+    expert.restore('model.ckpt')
 
     # get the sim_env ready
-    env = driving.Driving(story_index=4)
+    env = driving.Driving(story_index=5)
     ob = env.reset()
 
     R = 0
