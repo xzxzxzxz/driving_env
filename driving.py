@@ -6,7 +6,6 @@ import csv
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
-from scipy.io import savemat
 
 
 class Driving:
@@ -58,7 +57,7 @@ class Driving:
 
         # randomly generated initial state
         X0, Y0, phi0 = self.tracks[track_index].getStartPosYaw()
-        self.vehicle.reset_state(X0, Y0, phi0, initial_speed=2)
+        self.vehicle.reset_state(X0, Y0, phi0, initial_speed=15)
         vh_state = self.vehicle.get_state()
         self.trajectory = [vh_state]
 
@@ -81,13 +80,26 @@ class Driving:
             ref_obst = []
             obstacle_fail = False
             for i in range(len(self.obstacle_info)):
-                self.tracks[self.obstacle_info[i][0]].setStartPosObstacle(self.obstacle_info[i][1])
-                self.obstacles_traj[i] = [[self.tracks[self.obstacle_info[i][0]].x[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                          self.tracks[self.obstacle_info[i][0]].y[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                          self.tracks[self.obstacle_info[i][0]].psi[
-                                              self.tracks[self.obstacle_info[i][0]].obstacleIndex]]]
+                self.tracks[self.obstacle_info[i][0]].setStartPosObstacle(self.obstacle_info[i][1],
+                                                                          self.obstacle_info[i][2],
+                                                                          self.obstacle_info[i][3])
+                obstacle_pos = [[self.tracks[self.obstacle_info[i][0]].x[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                 self.tracks[self.obstacle_info[i][0]].y[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                 self.tracks[self.obstacle_info[i][0]].psi[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex]]]
+                if self.obstacle_info[i][3]:
+                    obstacle_pos.append([self.tracks[self.obstacle_info[i][0]].x[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance],
+                                         self.tracks[self.obstacle_info[i][0]].y[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance],
+                                         self.tracks[self.obstacle_info[i][0]].psi[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance]])
+                self.obstacles_traj[i] = [obstacle_pos]
                 refObstacle, collision = \
                     self.tracks[self.obstacle_info[i][0]].getRefObstacle(vh_state=vh_state)
                 ref_obst.append(refObstacle)
@@ -110,17 +122,28 @@ class Driving:
         self.trajectory.append(vh_state)
 
         # simulate the obstacles forward
+        obstacle_fail = False
         if len(self.obstacle_info):
             ref_obst = []
-            obstacle_fail = False
             for i in range(len(self.obstacle_info)):
                 self.tracks[self.obstacle_info[i][0]].obstacleMove()
-                self.obstacles_traj[i].append([self.tracks[self.obstacle_info[i][0]].x[
-                                                   self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                               self.tracks[self.obstacle_info[i][0]].y[
-                                                   self.tracks[self.obstacle_info[i][0]].obstacleIndex],
-                                               self.tracks[self.obstacle_info[i][0]].psi[
-                                                   self.tracks[self.obstacle_info[i][0]].obstacleIndex]])
+                obstacle_pos = [[self.tracks[self.obstacle_info[i][0]].x[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                 self.tracks[self.obstacle_info[i][0]].y[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex],
+                                 self.tracks[self.obstacle_info[i][0]].psi[
+                                     self.tracks[self.obstacle_info[i][0]].obstacleIndex]]]
+                if self.obstacle_info[i][3]:
+                    obstacle_pos.append([self.tracks[self.obstacle_info[i][0]].x[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance],
+                                         self.tracks[self.obstacle_info[i][0]].y[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance],
+                                         self.tracks[self.obstacle_info[i][0]].psi[
+                                             self.tracks[self.obstacle_info[i][0]].obstacleIndex +
+                                             self.tracks[self.obstacle_info[i][0]].obstacleDistance]])
+                self.obstacles_traj[i].append(obstacle_pos)
                 refObstacle, collision = \
                     self.tracks[self.obstacle_info[i][0]].getRefObstacle(vh_state=vh_state)
                 ref_obst.append(refObstacle)
@@ -212,7 +235,8 @@ class Driving:
     def get_obstacle_info(self):
         """
         get the info of the obstacles (if applicable)
-        :return: list of obstacle info for each obstacle, which is [track index, how far]
+        :return: list of obstacle info for each obstacle, which is
+                 [track index, how far, how fast, whether there are multiple obstacles on one track]
         """
         obstacle_info = []
 
@@ -220,15 +244,20 @@ class Driving:
             pass
 
         elif self.story_index == 4:
-            obstacle_info.append([0, 500])
+            obstacle_info.append([0, 500, 10, False])
 
         elif self.story_index == 5:
-            obstacle_info.append([0, 500])
-            obstacle_info.append([1, 300])
+            obstacle_info.append([0, 500, 10, False])
+            obstacle_info.append([1, 300, 10, False])
 
         elif self.story_index == 6:
-            obstacle_info.append([0, 300])
-            obstacle_info.append([1, 500])
+            obstacle_info.append([0, 300, 10, False])
+            obstacle_info.append([1, 500, 10, False])
+
+        elif self.story_index == 7:
+            obstacle_info.append([1, 300, 10, True])
+            obstacle_info.append([2, 500, 5, True])
+            obstacle_info.append([0, 700, 8, False])
 
         return obstacle_info
 
@@ -309,9 +338,16 @@ class Driving:
         self.obstaclePlot = []
         if len(self.obstacle_info):
             for i in range(len(self.obstacle_info)):
-                self.obstaclePlot.append(patches.Rectangle((0, 0), 3.8, 1.8, 0, color='red'))
-                self.obstaclePlot[i].set_zorder = 1
-                ax.add_patch(self.obstaclePlot[i])
+                one_track_obstacle_plot = [patches.Rectangle((0, 0), 3.8, 1.8, 0, color='red')]
+                if self.obstacle_info[i][3]:
+                    one_track_obstacle_plot.append(patches.Rectangle((0, 0), 3.8, 1.8, 0, color='red'))
+                self.obstaclePlot.append(one_track_obstacle_plot)
+
+                self.obstaclePlot[i][0].set_zorder = 1
+                ax.add_patch(self.obstaclePlot[i][0])
+                if self.obstacle_info[i][3]:
+                    self.obstaclePlot[i][1].set_zorder = 1
+                    ax.add_patch(self.obstaclePlot[i][1])
 
         plt.xlabel('X(m)')
         plt.ylabel('Y(m)')
@@ -421,11 +457,12 @@ def updatePlot(frames,
             ax.add_patch(debugviewPlot[i])
 
     # plot obstacle
-    for obstacle_plot, obstacle_traj in zip(obstacles_plot, obstacles_traj):
-        stateOb = obstacle_traj[frames]
-        xOb = stateOb[0] - sqrt(1.8 ** 2 + 3.8 ** 2) / 2 * cos(stateOb[2] + atan(1.8 / 3.8))
-        yOb = stateOb[1] - sqrt(1.8 ** 2 + 3.8 ** 2) / 2 * sin(stateOb[2] + atan(1.8 / 3.8))
-        obstacle_plot.set_xy((xOb, yOb))
-        obstacle_plot._angle = degrees(stateOb[2])
-        obstacle_plot.visible = True
-        ax.add_patch(obstacle_plot)
+    for one_track_obstacle_plot, obstacle_traj in zip(obstacles_plot, obstacles_traj):
+        statesOb = obstacle_traj[frames]
+        for stateOb, obstacle_plot in zip(statesOb, one_track_obstacle_plot):
+            xOb = stateOb[0] - sqrt(1.8 ** 2 + 3.8 ** 2) / 2 * cos(stateOb[2] + atan(1.8 / 3.8))
+            yOb = stateOb[1] - sqrt(1.8 ** 2 + 3.8 ** 2) / 2 * sin(stateOb[2] + atan(1.8 / 3.8))
+            obstacle_plot.set_xy((xOb, yOb))
+            obstacle_plot._angle = degrees(stateOb[2])
+            obstacle_plot.visible = True
+            ax.add_patch(obstacle_plot)
