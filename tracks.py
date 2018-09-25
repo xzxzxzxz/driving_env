@@ -18,7 +18,7 @@ class Track:
                deviation: for a parallel lane, indicates lateral deviation with base lane
                numPrePts: num of predicted waypoints at a certain timestep
                threshold: if farther away from lane than threshold, then terminate the episode
-        state: x, y, psi for the watpoints
+        state: x, y, psi for the waypoints
                size: length of the reference trajectory
                threshold: if deviation larger than threshold then report failure
                currentIndex: index of waypoint corresponding to current vehicle position
@@ -33,25 +33,28 @@ class Track:
         self.later_safe = 2
         self.currentIndex = 0
         self.obstacleIndex = 0
+        self.obstacleDistance = 0
         self.obstacleSpeed = 0
         self.dt = dt
         self.horizon = horizon
 
     def getStartPosYaw(self):
         """
-        randomly choose a waypoint in the first 1/4 of the traj as starting point
+        randomly choose a waypoint in the first 1/6 of the traj as starting point
         output: x, y, psi of the starting waypoint
         """
-        self.currentIndex = np.random.random_integers(0, int(self.size/4))
+        self.currentIndex = np.random.random_integers(0, int(self.size/6))
         return self.x[self.currentIndex], self.y[self.currentIndex], self.psi[self.currentIndex]
 
-    def setStartPosObstacle(self, delta_index = 5000, speed=10):
+    def setStartPosObstacle(self, delta_index = 5000, speed=10, two_obstacles=False):
         """
         choose a waypoint "delta_index" length after the currentIndex as the staring pos of obstacle
         Note: delta_index != 0, furthermore -> self,obstacleIndex==0 indicates no obstacle initiated
         """
         self.obstacleIndex = self.currentIndex + delta_index
         self.obstacleSpeed = speed
+        if two_obstacles:
+            self.obstacleDistance = np.random.random_integers(300, 500)
         return self.obstacleIndex
 
     def obstacleMove(self):
@@ -128,12 +131,36 @@ class Track:
         err_vy = self.obstacleSpeed * sin(err_phi) - vh_state[4]
         err_r = - vh_state[5]
 
-        refObstacle = np.array([err_x, err_y, err_phi, err_vx, err_vy, err_r])
+        refObstacle = [np.array([err_x, err_y, err_phi, err_vx, err_vy, err_r])]
 
         if abs(err_x) < 4 and abs(err_y) < 2:
             collision = True
         else:
             collision = False
+
+        # if there are two obetacles
+        if self.obstacleDistance:
+            delta_x = self.x[self.obstacleIndex+self.obstacleDistance] - vh_state[0]
+            delta_y = self.y[self.obstacleIndex+self.obstacleDistance] - vh_state[1]
+            distSqr = delta_x * delta_x + delta_y * delta_y
+            err_y = (delta_y - delta_x * tan(vh_state[2])) * cos(vh_state[2])
+            err_x = sqrt(distSqr - err_y ** 2)
+            err_phi = self.psi[self.obstacleIndex+self.obstacleDistance] - vh_state[2]
+            err_vx = self.obstacleSpeed * cos(err_phi) - vh_state[3]
+            err_vy = self.obstacleSpeed * sin(err_phi) - vh_state[4]
+            err_r = - vh_state[5]
+
+            refObstacle.append(np.array([err_x, err_y, err_phi, err_vx, err_vy, err_r]))
+
+            if abs(err_x) < 4 and abs(err_y) < 2:
+                collision = True
+            else:
+                pass # collision = collision
+
+            # if the ego is before both obstacles, delete the last obstacle and create a new one
+            if err_x < 0:
+                self.obstacleIndex = self.obstacleIndex + self.obstacleDistance
+                self.obstacleDistance = np.random.random_integers(300, 500)
 
         return refObstacle, collision
 

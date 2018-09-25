@@ -10,7 +10,7 @@ def main(sim_steps):
     expert.restore('model.ckpt')
 
     # get the sim_env ready
-    env = driving.Driving(story_index=5)
+    env = driving.Driving(story_index=7)
     ob = env.reset()
 
     R = 0
