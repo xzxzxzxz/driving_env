@@ -59,15 +59,13 @@ class PPO_Train:
             while True:
                 ob = self.env.reset()
                 obs, acs, rewards = [], [], []
-                steps = 0
                 while True:
                     obs.append(ob)
                     ac = self.ppo.choose_action(ob)
                     acs.append(ac)
-                    ob, rew, done = self.env.step(ac, steps)
+                    ob, rew, done = self.env.step(ac)
                     rewards.append(rew)
-                    steps += 1
-                    if done or steps > self.config.max_path_length:
+                    if done or self.env.step_num > self.config.max_path_length:
                         break
                 path = {"observation": np.array(obs),
                         "reward": np.array(rewards),

@@ -36,45 +36,56 @@ class Driving:
                                vh_err_bound,
                                vh_side_force
                                )
+        self.step_num = 0
         self.tracks = []
         self.tracks.append(Track(dt, track_data, track_horizon))
         self.tracks.append(Track(dt, track_data, track_horizon, deviation=3))
         self.tracks.append(Track(dt, track_data, track_horizon, deviation=-3))
+        self.story_index = story_index
+        self.track_index = self.get_track_index(0)
         self.trajectory = []
         self.index_list = []
         self.track_select = []
         self.debug_view = []  # stores the closest point, the foresee point, and foresee closest point
-        self.story_index = story_index
         self.obstacle_info = self.get_obstacle_info()
         self.obstacles_traj = []
         if len(self.obstacle_info):
             for i in range(len(self.obstacle_info)):
                 self.obstacles_traj.append([])
 
+    def get_obs(self):
+        # return needed observation in an array:
+        vh_state = self.vehicle.get_state()
+        ref_state = []
+        ref_status = []
+        ref_debugview = []
+        for i in range(3):
+            temp_ref_state, temp_ref_status, debugview = self.tracks[i].getRef(vh_state[0], vh_state[1], vh_state[2], vh_state[3])
+            ref_state.append(temp_ref_state)
+            ref_status.append(temp_ref_status)
+            ref_debugview.append(debugview)
+
+        obs = np.append(vh_state[3:], ref_state[self.track_index])
+        vh_state = self.vehicle.get_state()
+        status = ref_status[self.track_index]
+        self.debug_view = [ref_debugview[self.track_index]]
+        return obs, status
+
     def reset(self):
-        track_index = self.get_track_index(0)
-        self.track_select = [track_index]
+        self.step_num = 0
+        self.track_index = self.get_track_index(0)
+        self.track_select = [self.track_index]
 
         # randomly generated initial state
-        X0, Y0, phi0 = self.tracks[track_index].getStartPosYaw()
+        X0, Y0, phi0 = self.tracks[self.track_index].getStartPosYaw()
         self.vehicle.reset_state(X0, Y0, phi0, initial_speed=15)
         vh_state = self.vehicle.get_state()
         self.trajectory = [vh_state]
 
         # synchronize currentIndex
         for i in range(3):
-            self.tracks[i].currentIndex = self.tracks[track_index].currentIndex
-
-        # get track measurement
-        ref_state = []
-        ref_status = []
-        ref_debugview = []
-        for i in range(3):
-            ref, status, debugview = self.tracks[i].getRef(vh_state[0], vh_state[1], vh_state[2], vh_state[3])
-            ref_state.append(ref)
-            ref_status.append(status)
-            ref_debugview.append(debugview)
-
+            self.tracks[i].currentIndex = self.tracks[self.track_index].currentIndex
+        
         # initiate obstacle
         if len(self.obstacle_info):
             ref_obst = []
@@ -106,15 +117,15 @@ class Driving:
                 obstacle_fail = obstacle_fail or collision
 
 
-        self.index_list = [self.tracks[track_index].currentIndex]
-        self.debug_view = [ref_debugview[track_index]]
+        self.index_list = [self.tracks[self.track_index].currentIndex]
 
-        obs = np.append(vh_state[3:], ref_state[track_index])
+        obs, _ = self.get_obs()
         return obs
 
-    def step(self, action, steps):
-        track_index = self.get_track_index(steps)
-        self.track_select.append(track_index)
+    def step(self, action):
+        self.step_num += 1
+        self.track_index = self.get_track_index(self.step_num)
+        self.track_select.append(self.track_index)
 
         # simulate the vehicle forward
         self.vehicle.simulate(action)
@@ -149,21 +160,8 @@ class Driving:
                 ref_obst.append(refObstacle)
                 obstacle_fail = obstacle_fail or collision
 
-        # get track measurement
-        ref_state = []
-        ref_status = []
-        ref_debugview = []
-        for i in range(3):
-            temp_ref_state, temp_ref_status, debugview = self.tracks[i].getRef(vh_state[0], vh_state[1], vh_state[2], vh_state[3])
-            ref_state.append(temp_ref_state)
-            ref_status.append(temp_ref_status)
-            ref_debugview.append(debugview)
-
-        self.index_list.append(self.tracks[track_index].currentIndex)
-        self.debug_view.append(ref_debugview[track_index])
-
-        obs = np.append(vh_state[3:], ref_state[track_index])
-        status = ref_status[track_index]
+        self.index_list.append(self.tracks[self.track_index].currentIndex)
+        obs, status = self.get_obs()
         # calculate reward
         if len(self.obstacle_info) and obstacle_fail:
             status = -1
@@ -436,25 +434,29 @@ def updatePlot(frames,
     # plot debugview
     if debugviewBool:
         for i in range(3):
-            debugviewPlot[i].remove()
-        data = debug_view_data[frames]
-        debugviewPlot[0] = patches.Arrow(data[0][0],
-                                         data[0][1],
-                                         data[1][0] - data[0][0],
-                                         data[1][1] - data[0][1],
-                                         width=0.1)
-        debugviewPlot[1] = patches.Arrow(data[2][0],
-                                         data[2][1],
-                                         data[3][0] - data[2][0],
-                                         data[3][1] - data[2][1],
-                                         width=0.1)
-        debugviewPlot[2] = patches.Arrow(data[0][0],
-                                         data[0][1],
-                                         data[2][0] - data[0][0],
-                                         data[2][1] - data[0][1],
-                                         width=0.1)
-        for i in range(3):
-            ax.add_patch(debugviewPlot[i])
+            try:
+                debugviewPlot[i].remove()
+                data = debug_view_data[frames]
+                debugviewPlot[0] = patches.Arrow(data[0][0],
+                                                 data[0][1],
+                                                 data[1][0] - data[0][0],
+                                                 data[1][1] - data[0][1],
+                                                 width=0.1)
+                debugviewPlot[1] = patches.Arrow(data[2][0],
+                                                 data[2][1],
+                                                 data[3][0] - data[2][0],
+                                                 data[3][1] - data[2][1],
+                                                 width=0.1)
+                debugviewPlot[2] = patches.Arrow(data[0][0],
+                                                 data[0][1],
+                                                 data[2][0] - data[0][0],
+                                                 data[2][1] - data[0][1],
+                                                 width=0.1)
+                for i in range(3):
+                    ax.add_patch(debugviewPlot[i])
+            except:
+                print('frame: {}'.format(frames))
+                print('array len: {}'.format(len(debug_view_data)))
 
     # plot obstacle
     for one_track_obstacle_plot, obstacle_traj in zip(obstacles_plot, obstacles_traj):

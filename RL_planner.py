@@ -1,6 +1,6 @@
+import driving
 from config_ppo import Config_PPO
 from run_ppo import Run_PPO
-import driving
 
 
 def main(sim_steps):
@@ -16,7 +16,7 @@ def main(sim_steps):
     R = 0
     for i in range(sim_steps):
         ac = expert.obs_to_dyn_act(ob)
-        ob, r, done = env.step(ac, i)
+        ob, r, done = env.step(ac)
         R += r
         if done:
             print("total steps = ", i)
