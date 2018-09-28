@@ -36,13 +36,11 @@ class Driving:
                                vh_err_bound,
                                vh_side_force
                                )
-        self.step_num = 0
         self.tracks = []
         self.tracks.append(Track(dt, track_data, track_horizon))
         self.tracks.append(Track(dt, track_data, track_horizon, deviation=3))
         self.tracks.append(Track(dt, track_data, track_horizon, deviation=-3))
         self.story_index = story_index
-        self.track_index = self.get_track_index(0)
         self.trajectory = []
         self.index_list = []
         self.track_select = []
@@ -52,8 +50,10 @@ class Driving:
         if len(self.obstacle_info):
             for i in range(len(self.obstacle_info)):
                 self.obstacles_traj.append([])
+        # reset in init.
+        self.reset()
 
-    def get_obs(self):
+    def get_observation(self):
         # return needed observation in an array:
         vh_state = self.vehicle.get_state()
         ref_state = []
@@ -68,7 +68,7 @@ class Driving:
         obs = np.append(vh_state[3:], ref_state[self.track_index])
         vh_state = self.vehicle.get_state()
         status = ref_status[self.track_index]
-        self.debug_view = [ref_debugview[self.track_index]]
+        self.debug_view.append([ref_debugview[self.track_index]])
         return obs, status
 
     def reset(self):
@@ -119,7 +119,7 @@ class Driving:
 
         self.index_list = [self.tracks[self.track_index].currentIndex]
 
-        obs, _ = self.get_obs()
+        obs, _ = self.get_observation()
         return obs
 
     def step(self, action):
@@ -161,7 +161,7 @@ class Driving:
                 obstacle_fail = obstacle_fail or collision
 
         self.index_list.append(self.tracks[self.track_index].currentIndex)
-        obs, status = self.get_obs()
+        obs, status = self.get_observation()
         # calculate reward
         if len(self.obstacle_info) and obstacle_fail:
             status = -1
@@ -455,8 +455,7 @@ def updatePlot(frames,
                 for i in range(3):
                     ax.add_patch(debugviewPlot[i])
             except:
-                print('frame: {}'.format(frames))
-                print('array len: {}'.format(len(debug_view_data)))
+                pass
 
     # plot obstacle
     for one_track_obstacle_plot, obstacle_traj in zip(obstacles_plot, obstacles_traj):
