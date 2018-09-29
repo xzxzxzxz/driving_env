@@ -30,17 +30,15 @@ class Run_PPO:
     def get_sample_video(self):
         self.restore()
         ob = self.env.reset()
-        steps = 0
         total_r = 0.
         while True:
             ac = self.obs_to_dyn_act(ob)
-            ob, r, done = self.env.step(ac, steps)
-            steps += 1
+            ob, r, done = self.env.step(ac)
             total_r += r
-            if done or steps > self.config.max_path_length:
+            if done or self.env.step_num > self.config.max_path_length:
                 self.env.writeTraj('./')
                 self.env.render(100, '_sample', './', 0)
-                print('steps = %i' % steps)
+                print('steps = %i' % self.env.step_num)
                 print('total reward = %f' % total_r)
                 break
 
