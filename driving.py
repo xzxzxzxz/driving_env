@@ -66,9 +66,8 @@ class Driving:
             ref_debugview.append(debugview)
 
         obs = np.append(vh_state[3:], ref_state[self.track_index])
-        vh_state = self.vehicle.get_state()
         status = ref_status[self.track_index]
-        self.debug_view.append([ref_debugview[self.track_index]])
+        self.debug_view.append(ref_debugview[self.track_index])
         return obs, status
 
     def reset(self):
@@ -434,28 +433,25 @@ def updatePlot(frames,
     # plot debugview
     if debugviewBool:
         for i in range(3):
-            try:
-                debugviewPlot[i].remove()
-                data = debug_view_data[frames]
-                debugviewPlot[0] = patches.Arrow(data[0][0],
-                                                 data[0][1],
-                                                 data[1][0] - data[0][0],
-                                                 data[1][1] - data[0][1],
-                                                 width=0.1)
-                debugviewPlot[1] = patches.Arrow(data[2][0],
-                                                 data[2][1],
-                                                 data[3][0] - data[2][0],
-                                                 data[3][1] - data[2][1],
-                                                 width=0.1)
-                debugviewPlot[2] = patches.Arrow(data[0][0],
-                                                 data[0][1],
-                                                 data[2][0] - data[0][0],
-                                                 data[2][1] - data[0][1],
-                                                 width=0.1)
-                for i in range(3):
-                    ax.add_patch(debugviewPlot[i])
-            except:
-                pass
+            debugviewPlot[i].remove()
+        data = debug_view_data[frames]
+        debugviewPlot[0] = patches.Arrow(data[0][0],
+                                         data[0][1],
+                                         data[1][0] - data[0][0],
+                                         data[1][1] - data[0][1],
+                                         width=0.1)
+        debugviewPlot[1] = patches.Arrow(data[2][0],
+                                         data[2][1],
+                                         data[3][0] - data[2][0],
+                                         data[3][1] - data[2][1],
+                                         width=0.1)
+        debugviewPlot[2] = patches.Arrow(data[0][0],
+                                         data[0][1],
+                                         data[2][0] - data[0][0],
+                                         data[2][1] - data[0][1],
+                                         width=0.1)
+        for i in range(3):
+            ax.add_patch(debugviewPlot[i])
 
     # plot obstacle
     for one_track_obstacle_plot, obstacle_traj in zip(obstacles_plot, obstacles_traj):
